@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Countryball Clicker</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #00FFFF; /* Cyjanowe tło */
+        }
+
+        #game-container {
+            width: 900px;
+            height: 900px;
+            position: relative;
+            background-color: #00FFFF; /* Cyjanowe tło */
+            border-radius: 15px; /* Zaokrąglenie rogów kontenera */
+            box-shadow: 0 0 20px rgba(0,0,0,0.5); /* Cień kontenera */
+        }
+
+        #wardrobe {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: white;
+            border: 2px solid #0077cc; /* Kolor obramowania */
+            border-radius: 10px; /* Zaokrąglenie rogów */
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3); /* Cień panelu */
+            max-width: 250px; /* Maksymalna szerokość panelu */
+            z-index: 10; /* Zapewnia, że panel jest nad innymi elementami */
+        }
+
+        #wardrobe h2 {
+            margin-top: 0;
+            font-size: 24px;
+            color: #0077cc; /* Kolor nagłówka */
+        }
+
+        #wardrobe button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px; /* Zaokrąglenie rogów przycisku */
+            background-color: #0077cc; /* Kolor tła przycisku */
+            color: white; /* Kolor tekstu przycisku */
+            transition: background-color 0.3s, transform 0.2s; /* Efekt przejścia */
+        }
+
+        #wardrobe button:hover {
+            background-color: #005fa3; /* Kolor tła przycisku podczas najechania */
+        }
+
+        #wardrobe button:active {
+            background-color: #004080; /* Kolor tła przycisku podczas kliknięcia */
+            transform: scale(0.95); /* Efekt zmniejszenia przycisku podczas kliknięcia */
+        }
+
+        #click-count {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 36px;
+            font-weight: bold;
+            color: #000;
+        }
+
+        #file-buttons {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            border: 2px solid #0077cc; /* Kolor obramowania */
+            border-radius: 10px; /* Zaokrąglenie rogów */
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3); /* Cień panelu */
+            max-width: 250px; /* Maksymalna szerokość panelu */
+        }
+
+        #file-buttons h2 {
+            margin-top: 0;
+            font-size: 24px;
+            color: #0077cc; /* Kolor nagłówka */
+        }
+
+        #file-buttons button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px; /* Zaokrąglenie rogów przycisku */
+            background-color: #0077cc; /* Kolor tła przycisku */
+            color: white; /* Kolor tekstu przycisku */
+            transition: background-color 0.3s, transform 0.2s; /* Efekt przejścia */
+        }
+
+        #file-buttons button:hover {
+            background-color: #005fa3; /* Kolor tła przycisku podczas najechania */
+        }
+
+        #file-buttons button:active {
+            background-color: #004080; /* Kolor tła przycisku podczas kliknięcia */
+            transform: scale(0.95); /* Efekt zmniejszenia przycisku podczas kliknięcia */
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="click-count">Kliknięcia: 0</div>
+        <canvas id="game-canvas" width="900" height="900"></canvas>
+        <div id="wardrobe">
+            <h2>Garderoba</h2>
+            <button onclick="buySkin(1)">Skórka 1</button>
+            <button onclick="buySkin(2)">Skórka 2</button>
+            <button onclick="buySkin(3)">Skórka 3</button>
+            <button onclick="resetSkin()">Resetuj skórkę</button>
+        </div>
+        <div id="file-buttons">
+            <h2>Pliki</h2>
+            <button onclick="exportClickCount()">Eksportuj wyniki</button>
+            <input type="file" id="import-file" onchange="importClickCount(event)" style="display:none">
+            <button onclick="document.getElementById('import-file').click()">Importuj wyniki</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('game-canvas');
+            const ctx = canvas.getContext('2d');
+            const originalWidth = 150;
+            const originalHeight = 150;
+            const scaleFactor = 0.9; // Skala zmniejszenia
+            let currentWidth = originalWidth;
+            let currentHeight = originalHeight;
+            let isClicked = false;
+            let isDragging = false;
+            let clickStartTime = 0;
+            let clickCount = 0;
+            let skinNumber = 0; // 0 to oryginalna skórka
+            let ballX = canvas.width / 2;
+            let ballY = canvas.height / 2;
+            let startX = 0;
+            let startY = 0;
+            const pushSound = new Audio('push.wav');
+            const releaseSound = new Audio('release.wav');
+            const countryballImage = new Image();
+            let angle = 0; // Kąt obrotu countryballa
+            countryballImage.src = `cb_skin${skinNumber}.png`;
+
+            countryballImage.onload = () => render();
+
+            function drawCountryball(x, y) {
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(angle);
+                ctx.drawImage(
+                    countryballImage,
+                    -currentWidth / 2, // Przesunięcie do środka
+                    -currentHeight / 2, // Przesunięcie do środka
+                    currentWidth,
+                    currentHeight
+                );
+                ctx.restore();
+            }
+
+            function render() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                drawCountryball(ballX, ballY);
+                angle += 0.01; // Prędkość obrotu
+                requestAnimationFrame(render);
+            }
+
+            canvas.addEventListener('mousedown', (event) => {
+                if (event.button === 0) { // Lewy przycisk myszy
+                    clickStartTime = Date.now();
+                    isClicked = true;
+                    currentWidth = originalWidth * scaleFactor;
+                    currentHeight = originalHeight * scaleFactor;
+                    pushSound.play();
+                } else if (event.button === 2) { // Prawy przycisk myszy
+                    isDragging = true;
+                    startX = event.clientX;
+                    startY = event.clientY;
+                }
+            });
+
+            canvas.addEventListener('mouseup', (event) => {
+                if (event.button === 0) { // Lewy przycisk myszy
+                    const clickDuration = Date.now() - clickStartTime;
+                    if (clickDuration >= 100) {
+                        releaseSound.play();
+                    }
+                    isClicked = false;
+                    currentWidth = originalWidth;
+                    currentHeight = originalHeight;
+                } else if (event.button === 2) { // Prawy przycisk myszy
+                    isDragging = false;
+                }
+            });
+
+            canvas.addEventListener('mousemove', (event) => {
+                if (isDragging) {
+                    const dx = event.clientX - startX;
+                    const dy = event.clientY - startY;
+                    ballX += dx;
+                    ballY += dy;
+                    startX = event.clientX;
+                    startY = event.clientY;
+                }
+            });
+
+            canvas.addEventListener('contextmenu', (event) => {
+                event.preventDefault(); // Zapobiega pojawieniu się menu kontekstowego
+            });
+
+            canvas.addEventListener('click', () => {
+                clickCount++;
+                document.getElementById('click-count').textContent = `Kliknięcia: ${clickCount}`;
+            });
+
+            window.buySkin = function(number) {
+                if (number >= 0) {
+                    skinNumber = number;
+                    countryballImage.src = `cb_skin${skinNumber}.png`;
+                }
+            }
+
+            window.resetSkin = function() {
+                skinNumber = 0;
+                countryballImage.src = `cb_skin${skinNumber}.png`;
+            }
+
+            window.exportClickCount = function() {
+                const blob = new Blob([clickCount.toString()], { type: 'text/plain' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = 'click_count.cb_SAVE';
+                link.click();
+            }
+
+            window.importClickCount = function(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        clickCount = parseInt(e.target.result, 10);
+                        document.getElementById('click-count').textContent = `Kliknięcia: ${clickCount}`;
+                    };
+                    reader.readAsText(file);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
